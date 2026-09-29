@@ -261,3 +261,9 @@ The container applies pending Drizzle migrations on startup
 
 An optional Caddy service (compose profile `tls`) terminates HTTPS — enable it
 with `docker compose --profile tls up -d` and set `PORTAL_DOMAIN` in `.env`.
+
+To reach it through NetBird's dashboard Reverse Proxy, add
+`docker-compose.netbird.yml` as an additional compose path and set
+`NETBIRD_SETUP_KEY` — the NetBird client then shares the portal's network
+namespace, so the public proxy reaches `0.0.0.0:3000` while the host port stays
+loopback-only. See `DEPLOYMENT.md` §6.

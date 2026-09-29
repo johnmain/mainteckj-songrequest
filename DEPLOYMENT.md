@@ -156,37 +156,54 @@ from the stack's environment variables.
 The SQLite file lives in the **`portal_data`** volume; back it up with the
 `docker exec` command in §8.
 
-## 6. Expose it through Netbird
+## 6. Expose it through NetBird
 
-Install the Netbird client on the guest and join your network:
+Pick one of the two approaches below, then create the Reverse Proxy service.
+
+### Option A — NetBird on the host
+
+Install the client on the guest and join your network:
 
 ```bash
 curl -fsSL https://pkgs.netbird.io/install.sh | sh
-sudo netbird up
+sudo netbird up --setup-key <SETUP_KEY>
 ```
 
-Then either
-
-- use the **NetBird Reverse Proxy** (dashboard → Reverse Proxy → Add service)
-  with a **Peer** target pointing at this VM, protocol HTTP, port `3000`, or
-- run a small reverse proxy on the guest (Caddy example):
-
-  ```
-  karaoke.example.org {
-      reverse_proxy 127.0.0.1:3000
-  }
-  ```
+Then create a **NetBird Reverse Proxy** service (dashboard → Reverse Proxy →
+Add service) with a **Peer** target pointing at this VM, protocol HTTP, port
+`3000`.
 
 > **Bind address matters.** A NetBird **Peer** target delivers traffic to the
 > peer's overlay IP (`100.x`), not loopback, so the published port must not be
 > loopback-only: set `PORTAL_BIND=0.0.0.0` in the stack environment (§5b).
-> A reverse proxy that dials `127.0.0.1:3000` on this host — the Caddy example
-> above, or `netbird expose 3000` — works with the default
-> `PORTAL_BIND=127.0.0.1`.
+> A proxy that dials `127.0.0.1:3000` on this host (`netbird expose 3000`, or a
+> local Caddy) works with the default `PORTAL_BIND=127.0.0.1`, but the port is
+> then also reachable on the VM's LAN address.
 
-Make sure the proxy forwards `X-Forwarded-For` (or `X-Real-IP`) — the portal uses
-them for rate limiting. `ORIGIN` must equal the public HTTPS URL exactly, or auth
-callbacks and cookies will fail.
+### Option B — NetBird sidecar (no host client)
+
+Run NetBird beside the portal and share its network namespace, the same layout
+the OpenKJ stack used. The peer's `wt0` interface and overlay IP then live
+inside the portal container, so a **Peer** target reaches `0.0.0.0:3000`
+directly while the published host port stays loopback-only.
+
+Add `docker-compose.netbird.yml` as an **additional compose path** and set
+`NETBIRD_SETUP_KEY` (a reusable key) in the environment:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.netbird.yml up -d
+```
+
+In Portainer: stack → add `docker-compose.netbird.yml` to **Additional paths**,
+set `NETBIRD_SETUP_KEY`, then pull and redeploy. It needs `NET_ADMIN` and
+`/dev/net/tun`, both granted by the file. The peer registers under the portal
+container's hostname — rename it in the dashboard if you like. When the portal
+container is recreated, recreate the `netbird` service too so it rejoins the
+new namespace.
+
+Either way, `ORIGIN` must equal the public HTTPS URL exactly, and the proxy must
+forward `X-Forwarded-For` (or `X-Real-IP`) — the portal uses them for rate
+limiting.
 
 ## 7. Load the song catalog
 
