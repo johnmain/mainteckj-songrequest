@@ -234,6 +234,21 @@ curl -X POST "$ORIGIN/api/catalog/ingest" \
 
 Or, from the desktop app once Phase 11 is built, press **Sync now**.
 
+The export is several MB, so the stack sets `BODY_SIZE_LIMIT=16M` (adapter-node's
+default of 512 KB rejects the upload with a `413`). The ingest commits in
+batches of 200, logging progress every 10,000 songs to the container log:
+
+```bash
+docker logs -f maintec-kj-portal        # [catalog] committed 30000/55948 ...
+```
+
+To watch the count directly:
+
+```bash
+docker exec maintec-kj-portal node -e \
+  "console.log(require('better-sqlite3')('/data/local.db',{readonly:true}).prepare('select count(*) c from song').get().c)"
+```
+
 ## 8. Backups
 
 SQLite WAL needs a consistent snapshot. Take an online backup, then copy it out

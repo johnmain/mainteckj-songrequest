@@ -17,6 +17,9 @@ export interface IngestSummary {
 }
 
 const UPSERT_CHUNK_SIZE = 200;
+/** Only narrate progress for large imports (the desktop catalog sync). */
+const LOG_THRESHOLD = 2_000;
+const PROGRESS_EVERY = 10_000;
 
 /**
  * Upserts a de-duplicated master catalog. Songs are matched on the
@@ -59,6 +62,13 @@ export function ingestCatalog(db: AppDatabase, rows: CatalogInputRow[]): IngestS
 		pending.push({ title, artist, normalizedTitle, normalizedArtist });
 	}
 
+	const verbose = pending.length > LOG_THRESHOLD;
+	if (verbose) {
+		console.log(
+			`[catalog] ingesting ${pending.length} songs (${created} new, ${updated} refreshed, ${skipped} skipped)`
+		);
+	}
+
 	for (let i = 0; i < pending.length; i += UPSERT_CHUNK_SIZE) {
 		const chunk = pending.slice(i, i + UPSERT_CHUNK_SIZE);
 		db.transaction((tx) => {
@@ -76,6 +86,15 @@ export function ingestCatalog(db: AppDatabase, rows: CatalogInputRow[]): IngestS
 					.run();
 			}
 		});
+
+		const committed = i + chunk.length;
+		if (verbose && (committed % PROGRESS_EVERY === 0 || committed === pending.length)) {
+			console.log(`[catalog] committed ${committed}/${pending.length}`);
+		}
+	}
+
+	if (verbose) {
+		console.log(`[catalog] done: ${created} created, ${updated} updated, ${skipped} skipped`);
 	}
 
 	return { received: rows.length, imported: pending.length, created, updated, skipped };

@@ -29,6 +29,9 @@ services:
       # Resend (https://resend.com) — powers password-reset emails. Optional.
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-}
+      # Max request body adapter-node accepts. The song-catalog ingest is
+      # several MB, well over the 512 KB default, so allow 16 MB.
+      BODY_SIZE_LIMIT: ${BODY_SIZE_LIMIT:-16M}
       HOST_BRIDGE_TOKEN: ${HOST_BRIDGE_TOKEN:-}
     ports:
       # Bind address for the published port.
