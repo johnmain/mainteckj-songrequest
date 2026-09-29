@@ -22,6 +22,26 @@ Singer Request Flow: Authenticated singers search the master list, select a song
 
 Host Triage: Requests land in a staging queue on the desktop app, where the host sees all available provider file versions and selects the optimal file to add to the rotation.
 
+Host Bridge Endpoints (authenticated with `HOST_BRIDGE_TOKEN`)
+
+- `POST /api/host/requests/poll` — the desktop host's pull/heartbeat. Claims pending
+  requests and returns `{ count, requests, updates }`; the `X-Accepting` header
+  carries the host's "accepting requests" toggle.
+- `PATCH /api/host/requests/{id}` — host reports `approved | playing | played | rejected`.
+- `POST /api/catalog/ingest` — host pushes the master song export (`[{ Artist, Title }]`).
+- `GET /api/host/singers` — portal account directory (`{ singers: [{ id, name, stageName }] }`),
+  used by the desktop app to show whether a singer exists in the Request DB.
+- `POST /api/host/queue/push` — full reconcile of one singer's queue:
+  body `{ singerName, songs: [{ title, artist, played }] }`. Queued songs are created
+  as `approved`/delivered requests; active requests whose song is no longer queued are
+  removed (played/rejected history is untouched). `404` unknown singer, `409` ambiguous.
+
+Public endpoints
+
+- `GET /api/status` — CORS-enabled `{ accepting, hostSeenAt, updatedAt }` the marketing
+  site checks (GET only; a form POST is rejected by CSRF).
+- `GET /api/health` — liveness probe.
+
 Autonomous Agent Guidelines (for OpenCode / DeepSeek)
 
 Test-Driven Development: Write unit tests for API routes, database schemas, and Svelte component logic before finalizing code patches.

@@ -1,0 +1,112 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+import { eq } from 'drizzle-orm';
+import { createTestDb, createTestUser } from '../db/testing';
+import { song, songRequest } from '../db/schema';
+import type { AppDatabase } from '../db/client';
+import { pushSingerQueue } from './pushQueue';
+
+let db: AppDatabase;
+
+beforeEach(() => {
+	db = createTestDb();
+	createTestUser(db, { name: 'Alice' });
+});
+
+/** All requests for the test singer, keyed by song title. */
+function requestsByTitle() {
+	return db
+		.select({
+			id: songRequest.id,
+			title: song.title,
+			status: songRequest.status,
+			played: songRequest.hostPlayed,
+			delivered: songRequest.deliveredAt
+		})
+		.from(songRequest)
+		.innerJoin(song, eq(songRequest.songId, song.id))
+		.all();
+}
+
+describe('pushSingerQueue', () => {
+	it('reports an unknown singer', () => {
+		expect(pushSingerQueue(db, { singerName: 'Nobody', songs: [] }).status).toBe('unknown-singer');
+	});
+
+	it('creates approved, already-delivered requests and catalog songs', () => {
+		const result = pushSingerQueue(db, {
+			singerName: 'alice',
+			songs: [
+				{ title: 'Song A', artist: 'Band' },
+				{ title: 'Song B', artist: 'Band', played: true }
+			]
+		});
+
+		expect(result).toMatchObject({ status: 'ok', created: 2, updated: 0, removed: 0 });
+
+		const rows = requestsByTitle();
+		expect(rows).toHaveLength(2);
+		expect(rows.every((r) => r.status === 'approved' && r.delivered !== null)).toBe(true);
+		expect(rows.find((r) => r.title === 'Song B')?.played).toBe(true);
+		expect(rows.find((r) => r.title === 'Song A')?.played).toBe(false);
+	});
+
+	it('updates the played flag of an existing request', () => {
+		pushSingerQueue(db, { singerName: 'Alice', songs: [{ title: 'Song A', artist: 'Band' }] });
+		const result = pushSingerQueue(db, {
+			singerName: 'Alice',
+			songs: [{ title: 'Song A', artist: 'Band', played: true }]
+		});
+
+		expect(result).toMatchObject({ status: 'ok', created: 0, updated: 1, removed: 0 });
+		expect(requestsByTitle()[0].played).toBe(true);
+	});
+
+	it('removes active requests no longer in the queue but keeps played history', () => {
+		pushSingerQueue(db, {
+			singerName: 'Alice',
+			songs: [
+				{ title: 'Song A', artist: 'Band' },
+				{ title: 'Song B', artist: 'Band' }
+			]
+		});
+		const b = requestsByTitle().find((r) => r.title === 'Song B');
+		db.update(songRequest).set({ status: 'played' }).where(eq(songRequest.id, b!.id)).run();
+
+		// Song B is played (not active), Song C is dropped.
+		const result = pushSingerQueue(db, {
+			singerName: 'Alice',
+			songs: [{ title: 'Song A', artist: 'Band' }]
+		});
+
+		expect(result).toMatchObject({ status: 'ok', removed: 0 });
+		expect(
+			requestsByTitle()
+				.map((r) => r.title)
+				.sort()
+		).toEqual(['Song A', 'Song B']);
+
+		// Re-activate Song B and drop it: now it is pruned.
+		db.update(songRequest).set({ status: 'approved' }).where(eq(songRequest.id, b!.id)).run();
+		const pruned = pushSingerQueue(db, {
+			singerName: 'Alice',
+			songs: [{ title: 'Song A', artist: 'Band' }]
+		});
+		expect(pruned).toMatchObject({ status: 'ok', removed: 1 });
+		expect(requestsByTitle().map((r) => r.title)).toEqual(['Song A']);
+	});
+
+	it('skips blank rows and de-duplicates repeated songs', () => {
+		const result = pushSingerQueue(db, {
+			singerName: 'Alice',
+			songs: [
+				{ title: '', artist: 'Band' },
+				{ title: 'Song A', artist: 'Band' },
+				{ title: 'Song A', artist: 'Band', played: true }
+			]
+		});
+
+		expect(result).toMatchObject({ status: 'ok', created: 1, skipped: 1 });
+		expect(requestsByTitle()).toHaveLength(1);
+		expect(requestsByTitle()[0].played).toBe(true);
+	});
+});
