@@ -180,26 +180,29 @@ Add service) with a **Peer** target pointing at this VM, protocol HTTP, port
 > local Caddy) works with the default `PORTAL_BIND=127.0.0.1`, but the port is
 > then also reachable on the VM's LAN address.
 
-### Option B — NetBird sidecar (no host client)
+### Option B — NetBird sidecar (default, no host client)
 
-Run NetBird beside the portal and share its network namespace, the same layout
-the OpenKJ stack used. The peer's `wt0` interface and overlay IP then live
-inside the portal container, so a **Peer** target reaches `0.0.0.0:3000`
+The stack ships a `netbird` service that shares the portal's network namespace,
+the same layout the OpenKJ stack used. The peer's `wt0` interface and overlay IP
+live inside the portal container, so a **Peer** target reaches `0.0.0.0:3000`
 directly while the published host port stays loopback-only.
 
-Add `docker-compose.netbird.yml` as an **additional compose path** and set
-`NETBIRD_SETUP_KEY` (a reusable key) in the environment:
+Just set `NETBIRD_SETUP_KEY` (a reusable key) in the stack's environment and
+redeploy — no extra compose file or host install:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.netbird.yml up -d
+# .env (CLI): NETBIRD_SETUP_KEY=...
+docker compose up -d
 ```
 
-In Portainer: stack → add `docker-compose.netbird.yml` to **Additional paths**,
-set `NETBIRD_SETUP_KEY`, then pull and redeploy. It needs `NET_ADMIN` and
-`/dev/net/tun`, both granted by the file. The peer registers under the portal
-container's hostname — rename it in the dashboard if you like. When the portal
-container is recreated, recreate the `netbird` service too so it rejoins the
-new namespace.
+The service needs `NET_ADMIN`, `SYS_ADMIN/SYS_RESOURCE/SYS_MODULE` and
+`/dev/net/tun`, all granted in the compose file. The peer registers under the
+portal container's hostname — rename it in the dashboard if you like. A stack
+redeploy recreates `netbird` alongside `portal`, so it rejoins the new
+namespace automatically.
+
+Comment the `netbird` service out of `docker-compose.yml` if you run the
+NetBird client on the host instead (Option A).
 
 Either way, `ORIGIN` must equal the public HTTPS URL exactly, and the proxy must
 forward `X-Forwarded-For` (or `X-Real-IP`) — the portal uses them for rate
