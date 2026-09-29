@@ -2,19 +2,24 @@ import { fail, redirect } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { APIError } from 'better-auth/api';
 import { auth } from '$lib/server/auth';
+import { emailConfigured } from '$lib/server/email';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = ({ locals }) => {
+export const load: PageServerLoad = ({ locals, url }) => {
 	if (locals.user) {
 		return redirect(302, '/songs');
 	}
+
+	const emailPassword = env.AUTH_EMAIL_PASSWORD_ENABLED === 'true';
 
 	return {
 		providers: {
 			google: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET),
 			apple: Boolean(env.APPLE_CLIENT_ID && env.APPLE_CLIENT_SECRET),
-			emailPassword: env.AUTH_EMAIL_PASSWORD_ENABLED === 'true'
-		}
+			emailPassword
+		},
+		passwordReset: emailPassword && emailConfigured(),
+		reset: url.searchParams.get('reset') === '1'
 	};
 };
 

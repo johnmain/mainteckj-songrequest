@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { resolve } from '$app/paths';
 	import { authClient } from '$lib/auth-client';
 	import type { ActionData, PageData } from './$types';
 
@@ -18,6 +19,14 @@
 		<h1 class="text-2xl font-extrabold tracking-tight text-white">Sign in</h1>
 		<p class="text-sm text-neutral-400">Sign in to search the catalog and request songs.</p>
 	</div>
+
+	{#if data.reset}
+		<p
+			class="rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-200"
+		>
+			Password updated. Sign in with your new password.
+		</p>
+	{/if}
 
 	<div class="space-y-3">
 		{#if data.providers.google}
@@ -106,6 +115,13 @@
 			>
 				Sign in
 			</button>
+			{#if data.passwordReset}
+				<p class="text-right text-xs">
+					<a href={resolve('/forgot-password')} class="text-blue-400 hover:text-blue-300"
+						>Forgot password?</a
+					>
+				</p>
+			{/if}
 		</form>
 
 		<details class="rounded-lg border border-neutral-800 bg-neutral-800/60 p-4">
@@ -144,7 +160,7 @@
 					Create account
 				</button>
 				<p class="text-xs text-neutral-500">
-					Use an email address you can access — password recovery is handled by the host.
+					Use an email address you can access — you'll need it if you forget your password.
 				</p>
 			</form>
 		</details>

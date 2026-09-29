@@ -5,6 +5,35 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { sveltekitCookies } from 'better-auth/svelte-kit';
 import { getRequestEvent } from '$app/server';
 import { db } from '$lib/server/db';
+import { emailConfigured, sendEmail } from '$lib/server/email';
+
+function escapeHtml(value: string): string {
+	return value.replace(
+		/[&<>"']/g,
+		(char) =>
+			({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char] ?? char
+	);
+}
+
+/**
+ * Emails a password-reset link. Fired without awaiting (see Better Auth's note
+ * on timing attacks); sendEmail never throws, so nothing is left dangling.
+ */
+async function sendResetPasswordEmail({
+	user,
+	url
+}: {
+	user: { email: string; name: string };
+	url: string;
+}): Promise<void> {
+	const name = escapeHtml(user.name || 'there');
+	void sendEmail({
+		to: user.email,
+		subject: 'Reset your Maintec Karaoke password',
+		text: `Hi ${user.name || 'there'},\n\nChoose a new password with this link:\n${url}\n\nThe link expires soon. If you didn't request it, you can ignore this email.`,
+		html: `<p>Hi ${name},</p><p>Choose a new password for Maintec Karaoke with the link below:</p><p><a href="${url}">Reset my password</a></p><p>The link expires soon. If you didn't request it, you can ignore this email.</p>`
+	});
+}
 
 export const auth = betterAuth({
 	baseURL: env.ORIGIN,
@@ -14,10 +43,16 @@ export const auth = betterAuth({
 		env.BETTER_AUTH_SECRET ?? (building ? 'build-time-secret-placeholder-0000000000' : undefined),
 	database: drizzleAdapter(db, { provider: 'sqlite' }),
 
-	// Optional password sign-in for local testing. Disabled unless explicitly
-	// enabled via env; production uses Google/Apple OAuth.
+	// Password sign-in (enabled via env). When Resend is configured, singers can
+	// reset a forgotten password themselves; otherwise the host resets it.
 	emailAndPassword: {
-		enabled: env.AUTH_EMAIL_PASSWORD_ENABLED === 'true'
+		enabled: env.AUTH_EMAIL_PASSWORD_ENABLED === 'true',
+		...(emailConfigured()
+			? {
+					revokeSessionsOnPasswordReset: true,
+					sendResetPassword: sendResetPasswordEmail
+				}
+			: {})
 	},
 
 	// Singers authenticate with their existing Google or Apple account.

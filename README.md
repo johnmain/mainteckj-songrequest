@@ -28,15 +28,15 @@ npm run dev
 
 All secrets live in `.env` (git-ignored). See `.env.example` for the full list:
 
-| Variable                                    | Purpose                                                      |
-| ------------------------------------------- | ------------------------------------------------------------ |
-| `ORIGIN`                                    | Public portal URL (auth callbacks/cookies)                   |
-| `DATABASE_URL`                              | Path to the SQLite file                                      |
-| `BETTER_AUTH_SECRET`                        | Session signing secret (`openssl rand -base64 32`)           |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth credentials                                     |
-| `APPLE_CLIENT_ID` / `APPLE_CLIENT_SECRET`   | Sign in with Apple credentials                               |
-| `AUTH_EMAIL_PASSWORD_ENABLED`               | Email/password login (no verification or self-service reset) |
-| `HOST_BRIDGE_TOKEN`                         | Shared secret for the desktop host bridge (pull)             |
+| Variable                                    | Purpose                                                  |
+| ------------------------------------------- | -------------------------------------------------------- |
+| `ORIGIN`                                    | Public portal URL (auth callbacks/cookies)               |
+| `DATABASE_URL`                              | Path to the SQLite file                                  |
+| `BETTER_AUTH_SECRET`                        | Session signing secret (`openssl rand -base64 32`)       |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth credentials                                 |
+| `APPLE_CLIENT_ID` / `APPLE_CLIENT_SECRET`   | Sign in with Apple credentials                           |
+| `AUTH_EMAIL_PASSWORD_ENABLED`               | Email/password login (add Resend for self-service reset) |
+| `HOST_BRIDGE_TOKEN`                         | Shared secret for the desktop host bridge (pull)         |
 
 Register these redirect URIs with each provider:
 

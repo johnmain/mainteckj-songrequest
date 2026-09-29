@@ -86,8 +86,10 @@ Start from `.env.example` and set, at minimum:
 | `ORIGIN`                                    | Public HTTPS URL (the Netbird address) — **must match** what singers visit |
 | `DATABASE_URL`                              | `/data/local.db` (inside the container)                                    |
 | `BETTER_AUTH_SECRET`                        | `openssl rand -base64 32`                                                  |
+| `AUTH_EMAIL_PASSWORD_ENABLED`               | `true` to let singers sign up with email + password                        |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | optional                                                                   |
 | `APPLE_CLIENT_ID` / `APPLE_CLIENT_SECRET`   | optional                                                                   |
+| `RESEND_API_KEY` / `EMAIL_FROM`             | optional — enables self-service password reset (see below)                 |
 | `HOST_BRIDGE_TOKEN`                         | Shared secret the desktop host uses to poll/update (must match)            |
 
 Register these redirect URIs with each provider (they must use the public
@@ -97,9 +99,11 @@ Register these redirect URIs with each provider (they must use the public
 - `${ORIGIN}/api/auth/callback/apple`
 
 `AUTH_EMAIL_PASSWORD_ENABLED=true` adds email/password sign-in for singers
-without Google/Apple. Note it has **no email verification and no self-service
-password reset** — forgotten passwords must be reset by the host — so treat it
-as sign-in for a trusted venue rather than the open internet. Leave it `false`
+without Google/Apple. Set `RESEND_API_KEY` and `EMAIL_FROM` too, and the login
+page grows a **Forgot password?** link that emails a reset link (via Resend).
+`EMAIL_FROM` must be on a domain verified in Resend. Note there is still **no
+email verification at sign-up**, so treat open sign-up as "trusted venue"
+unless you also enable verification. Leave `AUTH_EMAIL_PASSWORD_ENABLED=false`
 if you only want OAuth.
 
 ## 5. Run the stack (CLI)
