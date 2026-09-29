@@ -1,34 +1,38 @@
 # Docker Compose stack for the singer portal.
 #
-# Deploy from GitHub (recommended): .github/workflows/ci.yml publishes the image
-# to GHCR on every push to the default branch.
+# Deploy with Portainer (Stacks → Add stack → Repository) or the CLI:
+#   docker compose pull && docker compose up -d
 #
-#   cp .env.example .env      # then fill it in
-#   docker compose pull
-#   docker compose up -d
+# The image is built and published to GHCR by .github/workflows/ci.yml. Put the
+# environment values either in a local .env (CLI) or in the stack's Environment
+# variables (Portainer) — both feed the ${...} substitutions below.
 #
-# Build on the host instead of pulling:
-#   docker compose up -d --build
-#
-# Optional TLS reverse proxy (see Caddyfile):
-#   docker compose --profile tls up -d
+# Optional TLS reverse proxy: add `--profile tls` (CLI) or set the stack to use
+# the tls profile (see Caddyfile and PORTAL_DOMAIN).
 services:
   portal:
-    # The workflow publishes to ghcr.io/<owner>/<repo>. You can also set
-    # PORTAL_IMAGE in .env to override.
     image: ${PORTAL_IMAGE:-ghcr.io/johnmain/mainteckj-songrequest:latest}
-    build: .
+    pull_policy: always
     container_name: maintec-kj-portal
     restart: unless-stopped
-    env_file: .env
     environment:
-      # Keep the database on the mounted volume regardless of .env.
+      # The database always lives on the mounted volume.
       DATABASE_URL: /data/local.db
+      # Everything below is supplied by .env (CLI) / stack env vars (Portainer).
+      ORIGIN: ${ORIGIN:-}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      APPLE_CLIENT_ID: ${APPLE_CLIENT_ID:-}
+      APPLE_CLIENT_SECRET: ${APPLE_CLIENT_SECRET:-}
+      AUTH_EMAIL_PASSWORD_ENABLED: ${AUTH_EMAIL_PASSWORD_ENABLED:-false}
+      HOST_BRIDGE_TOKEN: ${HOST_BRIDGE_TOKEN:-}
     ports:
       # Bound to localhost; expose it via Netbird / the reverse proxy.
       - '127.0.0.1:3000:3000'
     volumes:
-      - ./data:/data
+      # Named volume by default; set PORTAL_DATA to a host path to bind-mount.
+      - ${PORTAL_DATA:-portal_data}:/data
     healthcheck:
       test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/api/health']
       interval: 30s
@@ -36,9 +40,8 @@ services:
       retries: 5
       start_period: 15s
 
-  # Optional TLS termination. Point a DNS name at this VM and set PORTAL_DOMAIN
-  # in .env. If you already front the portal with Netbird's ingress, leave this
-  # profile off.
+  # Optional TLS termination. Point a DNS name at this VM and set PORTAL_DOMAIN.
+  # If Netbird's ingress already fronts the portal, leave this profile off.
   caddy:
     image: caddy:2-alpine
     container_name: maintec-kj-caddy
@@ -57,5 +60,6 @@ services:
       - caddy_config:/config
 
 volumes:
+  portal_data:
   caddy_data:
   caddy_config:

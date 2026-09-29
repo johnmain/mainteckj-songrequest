@@ -236,18 +236,24 @@ scripts/mock-host.mjs          # local host poller (pull model)
 ## Deploy
 
 The image is published to GHCR by `.github/workflows/ci.yml`. See
-[`DEPLOYMENT.md`](DEPLOYMENT.md) for the full Proxmox + Netbird guide.
+[`DEPLOYMENT.md`](DEPLOYMENT.md) for the full Proxmox + Netbird/Portainer guide.
+
+CLI:
 
 ```bash
-cp .env.example .env        # then fill it in; set PORTAL_IMAGE to your GHCR image
-mkdir -p data
+cp .env.example .env        # fill in ORIGIN, BETTER_AUTH_SECRET, HOST_BRIDGE_TOKEN
 docker compose pull
 docker compose up -d
 ```
 
-`docker compose up -d --build` builds locally instead of pulling. The container
-applies pending Drizzle migrations on startup (`docker/entrypoint.sh`) and mounts
-`./data` at `/data` for the SQLite file, so singer data survives restarts.
+**Portainer:** add the `ghcr.io` registry, then create a stack from the
+repository (`docker-compose.yml`) and set the environment variables in the UI —
+see `DEPLOYMENT.md` §5b.
+
+The container applies pending Drizzle migrations on startup
+(`docker/entrypoint.sh`); the SQLite file lives in the `portal_data` volume (set
+`PORTAL_DATA` to bind-mount a host path). Build locally with
+`docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`.
 
 An optional Caddy service (compose profile `tls`) terminates HTTPS — enable it
 with `docker compose --profile tls up -d` and set `PORTAL_DOMAIN` in `.env`.

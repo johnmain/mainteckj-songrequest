@@ -98,22 +98,63 @@ Register these redirect URIs with each provider (they must use the public
 
 Leave `AUTH_EMAIL_PASSWORD_ENABLED=false` in production.
 
-## 5. Run the stack
+## 5. Run the stack (CLI)
 
 ```bash
-mkdir -p data
 # only if the GHCR package is private:
-#   echo "$GHCR_PAT" | docker login ghcr.io -u <github-user> --password-stdin
+#   echo "$GHCR_PAT" | docker login ghcr.io -u johnmain --password-stdin
 docker compose pull
 docker compose up -d
 docker compose logs -f
 ```
 
-To build on the VM instead of pulling: `docker compose up -d --build`.
+Compose reads `.env` from the project directory for the `${...}` values, and the
+SQLite file goes into the `portal_data` volume (set `PORTAL_DATA` in `.env` to a
+host path to bind-mount instead).
+
+To build the image on the VM instead of pulling:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+```
 
 The container applies pending migrations on start (`docker/entrypoint.sh`), then
 serves on port 3000, published only on `127.0.0.1`. `docker compose ps` should
 show the `portal` service as **healthy**.
+
+## 5b. Deploying with Portainer (recommended on a Portainer Docker VM)
+
+The stack is **pull-only** — no build runs on the VM — and reads its settings
+from the stack's environment variables.
+
+1. **Registry** — _Registries → Add registry → Custom_:
+   - Name `ghcr.io`, URL `ghcr.io`, username `johnmain`,
+     password = a PAT with `read:packages`.
+   - Skip if you make the package public.
+
+2. **Stack** — _Stacks → Add stack → Repository_:
+   - Repository URL: `https://github.com/johnmain/mainteckj-songrequest`
+   - Reference: `refs/heads/main`
+   - Authentication: **on** — username `johnmain`, password = a PAT with `repo` read
+   - Compose path: `docker-compose.yml`
+
+3. **Environment variables** — add these in the stack's _Environment variables_:
+
+   | Variable                       | Value                                             |
+   | ------------------------------ | ------------------------------------------------- |
+   | `ORIGIN`                       | `https://your-netbird-name`                       |
+   | `BETTER_AUTH_SECRET`           | `openssl rand -base64 32`                         |
+   | `HOST_BRIDGE_TOKEN`            | shared secret — the same value in the desktop app |
+   | `GOOGLE_CLIENT_ID` / `_SECRET` | optional                                          |
+   | `APPLE_CLIENT_ID` / `_SECRET`  | optional                                          |
+   | `PORTAL_DATA`                  | optional — host path instead of the named volume  |
+
+4. **Deploy the stack.** `portal` should come up **healthy**. Enable _GitOps
+   updates_ (polling) to redeploy when CI publishes a new image, or click
+   _Update the stack_ with _Re-pull image_ on.
+
+The SQLite file lives in the **`portal_data`** volume; back it up with the
+`docker exec` command in §8.
 
 ## 6. Expose it through Netbird
 
@@ -160,15 +201,18 @@ Or, from the desktop app once Phase 11 is built, press **Sync now**.
 
 ## 8. Backups
 
-SQLite WAL needs a consistent snapshot. Either:
+SQLite WAL needs a consistent snapshot. Take an online backup, then copy it out
+of the volume:
 
 ```bash
-# Online backup (safe while running)
-docker exec maintec-kj-portal node -e "require('better-sqlite3')('/data/local.db').backup('/data/backup-' + Date.now() + '.db')"
+docker exec maintec-kj-portal node -e "require('better-sqlite3')('/data/local.db').backup('/data/backup.db')"
+docker cp maintec-kj-portal:/data/backup.db "./backup-$(date +%F).db"
+docker exec maintec-kj-portal rm -f /data/backup.db
 ```
 
-or stop the container and copy `data/`. Back up `.env` too. A nightly cron that
-copies the snapshot to the NAS is enough.
+(If you set `PORTAL_DATA` to a host path, the snapshot appears there directly.)
+Back up the stack's environment/secrets too — via Portainer or `.env`. A nightly
+cron/job that copies the snapshot to the NAS is enough.
 
 ## 9. Updating
 

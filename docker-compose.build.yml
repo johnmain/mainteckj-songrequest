@@ -1,0 +1,8 @@
+# Local build override. The main stack pulls the CI-published GHCR image; layer
+# this on top to build the image on this machine instead:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+services:
+  portal:
+    image: maintec-kj-portal:local
+    build: .
