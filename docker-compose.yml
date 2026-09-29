@@ -14,9 +14,9 @@
 #   docker compose --profile tls up -d
 services:
   portal:
-    # Replace CHANGE_ME with the GitHub owner (user/org); the workflow publishes
-    # to ghcr.io/<owner>/<repo>. You can also set PORTAL_IMAGE in .env.
-    image: ${PORTAL_IMAGE:-ghcr.io/CHANGE_ME/mainteckj-songrequest:latest}
+    # The workflow publishes to ghcr.io/<owner>/<repo>. You can also set
+    # PORTAL_IMAGE in .env to override.
+    image: ${PORTAL_IMAGE:-ghcr.io/johnmain/mainteckj-songrequest:latest}
     build: .
     container_name: maintec-kj-portal
     restart: unless-stopped
