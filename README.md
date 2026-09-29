@@ -147,6 +147,10 @@ with a confirmation notice, where the singer's requests are listed with live sta
   Marking a request `played` records it in the singer's history exactly once.
 - **Duplicate guard:** a singer can't queue the same song twice while it is still
   pending/approved/playing.
+- **Live status:** `GET /api/status` (public, CORS-enabled, no auth) returns
+  `{ accepting, hostSeenAt, updatedAt }`. `accepting` is true only while the
+  desktop host is polling and its **Accepting requests** toggle is on (30 s
+  grace), so the marketing site can show or hide the request link.
 - **Played/unplayed sync:** the poll response also carries `updates` — played
   toggles the singer made. The host applies each to its queue row (matched by
   `portal_request_id`) and `PATCH`es the result back; the portal shows the host's

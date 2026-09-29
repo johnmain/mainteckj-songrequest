@@ -149,6 +149,21 @@ export const songHistory = sqliteTable(
 	]
 );
 
+/**
+ * Singleton row (id = 1) tracking whether the desktop host is live and
+ * accepting requests. Written on every host poll (heartbeat); read by the
+ * public /api/status endpoint the website checks.
+ */
+export const hostState = sqliteTable('host_state', {
+	id: integer('id').primaryKey(),
+	accepting: integer('accepting', { mode: 'boolean' }).notNull().default(false),
+	lastSeenAt: integer('last_seen_at', { mode: 'timestamp_ms' }),
+	updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+		.default(nowDefault)
+		.$onUpdate(() => new Date())
+		.notNull()
+});
+
 export type Song = typeof song.$inferSelect;
 export type NewSong = typeof song.$inferInsert;
 export type SongFile = typeof songFile.$inferSelect;
