@@ -167,8 +167,8 @@ sudo netbird up
 
 Then either
 
-- use a **Netbird ingress/reverse-proxy** feature to map an HTTPS name to
-  `http://127.0.0.1:3000`, or
+- use the **NetBird Reverse Proxy** (dashboard → Reverse Proxy → Add service)
+  with a **Peer** target pointing at this VM, protocol HTTP, port `3000`, or
 - run a small reverse proxy on the guest (Caddy example):
 
   ```
@@ -176,6 +176,13 @@ Then either
       reverse_proxy 127.0.0.1:3000
   }
   ```
+
+> **Bind address matters.** A NetBird **Peer** target delivers traffic to the
+> peer's overlay IP (`100.x`), not loopback, so the published port must not be
+> loopback-only: set `PORTAL_BIND=0.0.0.0` in the stack environment (§5b).
+> A reverse proxy that dials `127.0.0.1:3000` on this host — the Caddy example
+> above, or `netbird expose 3000` — works with the default
+> `PORTAL_BIND=127.0.0.1`.
 
 Make sure the proxy forwards `X-Forwarded-For` (or `X-Real-IP`) — the portal uses
 them for rate limiting. `ORIGIN` must equal the public HTTPS URL exactly, or auth

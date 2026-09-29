@@ -28,8 +28,13 @@ services:
       AUTH_EMAIL_PASSWORD_ENABLED: ${AUTH_EMAIL_PASSWORD_ENABLED:-false}
       HOST_BRIDGE_TOKEN: ${HOST_BRIDGE_TOKEN:-}
     ports:
-      # Bound to localhost; expose it via Netbird / the reverse proxy.
-      - '127.0.0.1:3000:3000'
+      # Bind address for the published port.
+      #  - 127.0.0.1 (default): only reachable from this host. Use it when a
+      #    reverse proxy on the same host dials localhost (e.g. `netbird expose`).
+      #  - 0.0.0.0: accept on every interface. Required for NetBird's dashboard
+      #    Reverse Proxy with a "Peer" target, which connects to the peer's
+      #    overlay IP (100.x), not loopback.
+      - '${PORTAL_BIND:-127.0.0.1}:3000:3000'
     volumes:
       # Named volume by default; set PORTAL_DATA to a host path to bind-mount.
       - ${PORTAL_DATA:-portal_data}:/data
