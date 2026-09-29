@@ -66,14 +66,14 @@
 	{#if !data.providers.google && !data.providers.apple && !data.providers.emailPassword}
 		<p class="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-200">
 			No sign-in providers are configured. Add Google/Apple credentials or set
-			<code>AUTH_EMAIL_PASSWORD_ENABLED=true</code> for local testing.
+			<code>AUTH_EMAIL_PASSWORD_ENABLED=true</code> to enable email sign-in.
 		</p>
 	{/if}
 
 	{#if data.providers.emailPassword}
 		<div class="flex items-center gap-3 text-xs tracking-wide text-neutral-500 uppercase">
 			<span class="h-px flex-1 bg-neutral-800"></span>
-			Local testing
+			or
 			<span class="h-px flex-1 bg-neutral-800"></span>
 		</div>
 
@@ -110,7 +110,7 @@
 
 		<details class="rounded-lg border border-neutral-800 bg-neutral-800/60 p-4">
 			<summary class="cursor-pointer text-sm font-semibold text-neutral-200">
-				Create a local test account
+				New here? Create an account
 			</summary>
 			<form method="post" action="?/signUpEmail" class="mt-3 space-y-3" use:enhance>
 				<input
@@ -143,6 +143,9 @@
 				>
 					Create account
 				</button>
+				<p class="text-xs text-neutral-500">
+					Use an email address you can access — password recovery is handled by the host.
+				</p>
 			</form>
 		</details>
 	{/if}

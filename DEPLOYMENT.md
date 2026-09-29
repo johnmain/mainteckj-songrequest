@@ -96,7 +96,11 @@ Register these redirect URIs with each provider (they must use the public
 - `${ORIGIN}/api/auth/callback/google`
 - `${ORIGIN}/api/auth/callback/apple`
 
-Leave `AUTH_EMAIL_PASSWORD_ENABLED=false` in production.
+`AUTH_EMAIL_PASSWORD_ENABLED=true` adds email/password sign-in for singers
+without Google/Apple. Note it has **no email verification and no self-service
+password reset** — forgotten passwords must be reset by the host — so treat it
+as sign-in for a trusted venue rather than the open internet. Leave it `false`
+if you only want OAuth.
 
 ## 5. Run the stack (CLI)
 
