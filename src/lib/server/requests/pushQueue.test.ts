@@ -95,6 +95,42 @@ describe('pushSingerQueue', () => {
 		expect(requestsByTitle().map((r) => r.title)).toEqual(['Song A']);
 	});
 
+	it('dry run reports the plan without writing anything', () => {
+		pushSingerQueue(db, {
+			singerName: 'Alice',
+			songs: [
+				{ title: 'Song A', artist: 'Band' },
+				{ title: 'Song B', artist: 'Band' }
+			]
+		});
+		const before = requestsByTitle().length;
+
+		const preview = pushSingerQueue(db, {
+			singerName: 'Alice',
+			songs: [
+				{ title: 'Song A', artist: 'Band' },
+				{ title: 'Song C', artist: 'Band' }
+			],
+			dryRun: true
+		});
+
+		expect(preview).toMatchObject({
+			status: 'ok',
+			dryRun: true,
+			created: 1, // Song C (new request + new catalog song)
+			updated: 1, // Song A
+			removed: 1 // Song B dropped from the queue
+		});
+		expect(requestsByTitle()).toHaveLength(before);
+		expect(
+			db
+				.select()
+				.from(song)
+				.all()
+				.some((s) => s.title === 'Song C')
+		).toBe(false);
+	});
+
 	it('skips blank rows and de-duplicates repeated songs', () => {
 		const result = pushSingerQueue(db, {
 			singerName: 'Alice',

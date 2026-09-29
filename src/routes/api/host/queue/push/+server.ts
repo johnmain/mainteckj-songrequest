@@ -17,6 +17,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	const body = (await request.json().catch(() => null)) as {
 		singerName?: unknown;
 		songs?: unknown;
+		dryRun?: unknown;
 	} | null;
 
 	if (!body || typeof body !== 'object') {
@@ -29,8 +30,11 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 
 	const songs = Array.isArray(body.songs) ? (body.songs as QueueSongInput[]) : [];
+	// dryRun computes the add/update/remove counts without writing (used by the
+	// app's "Push to Portal?" confirmation).
+	const dryRun = body.dryRun === true;
 
-	const result = pushSingerQueue(db, { singerName, songs });
+	const result = pushSingerQueue(db, { singerName, songs, dryRun });
 
 	if (result.status === 'unknown-singer') {
 		throw error(404, `No portal singer named "${singerName}" — they must sign in once`);
