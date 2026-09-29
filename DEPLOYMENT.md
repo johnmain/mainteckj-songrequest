@@ -88,23 +88,27 @@ Start from `.env.example` and set, at minimum:
 | `BETTER_AUTH_SECRET`                        | `openssl rand -base64 32`                                                  |
 | `AUTH_EMAIL_PASSWORD_ENABLED`               | `true` to let singers sign up with email + password                        |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | optional                                                                   |
-| `APPLE_CLIENT_ID` / `APPLE_CLIENT_SECRET`   | optional                                                                   |
-| `RESEND_API_KEY` / `EMAIL_FROM`             | optional — enables self-service password reset (see below)                 |
+| `RESEND_API_KEY` / `EMAIL_FROM`             | optional — enables email verification + password reset (see below)         |
 | `HOST_BRIDGE_TOKEN`                         | Shared secret the desktop host uses to poll/update (must match)            |
 
-Register these redirect URIs with each provider (they must use the public
-`ORIGIN`):
+Register this redirect URI with Google (it must use the public `ORIGIN`):
 
 - `${ORIGIN}/api/auth/callback/google`
-- `${ORIGIN}/api/auth/callback/apple`
 
 `AUTH_EMAIL_PASSWORD_ENABLED=true` adds email/password sign-in for singers
-without Google/Apple. Set `RESEND_API_KEY` and `EMAIL_FROM` too, and the login
-page grows a **Forgot password?** link that emails a reset link (via Resend).
-`EMAIL_FROM` must be on a domain verified in Resend. Note there is still **no
-email verification at sign-up**, so treat open sign-up as "trusted venue"
-unless you also enable verification. Leave `AUTH_EMAIL_PASSWORD_ENABLED=false`
-if you only want OAuth.
+without a Google account. Set `RESEND_API_KEY` and `EMAIL_FROM` too, and:
+
+- sign-up requires **email verification** (a confirmation link is emailed),
+- the login page grows a **Forgot password?** link for self-service resets.
+
+`EMAIL_FROM` must be on a domain verified in Resend. If a singer is locked out
+and you want to fix it directly (also works for Google-only users):
+
+```bash
+docker exec maintec-kj-portal node docker/reset-password.mjs singer@example.com new-password
+```
+
+Leave `AUTH_EMAIL_PASSWORD_ENABLED=false` if you only want Google sign-in.
 
 ## 5. Run the stack (CLI)
 
@@ -154,7 +158,6 @@ from the stack's environment variables.
    | `BETTER_AUTH_SECRET`           | `openssl rand -base64 32`                         |
    | `HOST_BRIDGE_TOKEN`            | shared secret — the same value in the desktop app |
    | `GOOGLE_CLIENT_ID` / `_SECRET` | optional                                          |
-   | `APPLE_CLIENT_ID` / `_SECRET`  | optional                                          |
    | `PORTAL_DATA`                  | optional — host path instead of the named volume  |
 
 4. **Deploy the stack.** `portal` should come up **healthy**. Enable _GitOps

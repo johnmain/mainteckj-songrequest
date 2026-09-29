@@ -10,7 +10,7 @@ See `AGENT.md` for architecture and `CHECKLIST.md` for the phased roadmap.
 
 - **SvelteKit** (TypeScript, Vite, Svelte 5 runes)
 - **Tailwind CSS v4** for the mobile-first UI
-- **Better Auth** for authentication (Google & Apple OAuth)
+- **Better Auth** for authentication (Google OAuth, or email + password)
 - **Drizzle ORM + SQLite** (`better-sqlite3`) for persistence
 - **Vitest** for unit tests, **ESLint + Prettier** for code quality
 - **@sveltejs/adapter-node** + Docker for NAS deployment
@@ -28,22 +28,27 @@ npm run dev
 
 All secrets live in `.env` (git-ignored). See `.env.example` for the full list:
 
-| Variable                                    | Purpose                                                  |
-| ------------------------------------------- | -------------------------------------------------------- |
-| `ORIGIN`                                    | Public portal URL (auth callbacks/cookies)               |
-| `DATABASE_URL`                              | Path to the SQLite file                                  |
-| `BETTER_AUTH_SECRET`                        | Session signing secret (`openssl rand -base64 32`)       |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth credentials                                 |
-| `APPLE_CLIENT_ID` / `APPLE_CLIENT_SECRET`   | Sign in with Apple credentials                           |
-| `AUTH_EMAIL_PASSWORD_ENABLED`               | Email/password login (add Resend for self-service reset) |
-| `HOST_BRIDGE_TOKEN`                         | Shared secret for the desktop host bridge (pull)         |
+| Variable                                    | Purpose                                            |
+| ------------------------------------------- | -------------------------------------------------- |
+| `ORIGIN`                                    | Public portal URL (auth callbacks/cookies)         |
+| `DATABASE_URL`                              | Path to the SQLite file                            |
+| `BETTER_AUTH_SECRET`                        | Session signing secret (`openssl rand -base64 32`) |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth credentials                           |
+| `AUTH_EMAIL_PASSWORD_ENABLED`               | Email/password login                               |
+| `RESEND_API_KEY` / `EMAIL_FROM`             | Optional — verification + password-reset email     |
+| `HOST_BRIDGE_TOKEN`                         | Shared secret for the desktop host bridge (pull)   |
 
-Register these redirect URIs with each provider:
+Register this redirect URI with Google:
 
 - `${ORIGIN}/api/auth/callback/google`
-- `${ORIGIN}/api/auth/callback/apple`
 
-Social providers are only enabled when their credentials are present.
+Social providers are only enabled when their credentials are present. With
+Resend configured, email sign-up requires **verification**, forgotten passwords
+can be **reset by the singer**, and the host can reset one directly:
+
+```bash
+docker exec maintec-kj-portal node docker/reset-password.mjs singer@example.com new-password
+```
 
 ## Singer profile & history (Phase 3)
 
@@ -200,7 +205,7 @@ src/
     auth-client.ts             # client-side Better Auth SDK
     config/nav.ts              # portal navigation
     server/
-      auth.ts                  # Better Auth configuration (Google/Apple)
+      auth.ts                  # Better Auth configuration (Google + email/password)
       catalog/
         normalize.ts           # text normalization + FTS query builder
         parse.ts               # JSON/CSV master export parser

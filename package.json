@@ -22,7 +22,8 @@
 		"catalog:ingest": "tsx scripts/ingest-catalog.ts",
 		"mock-host": "node scripts/mock-host.mjs",
 		"dev:host": "vite dev --host",
-		"token:generate": "node -e \"console.log(require(\\\"node:crypto\\\").randomBytes(48).toString(\\\"base64url\\\"))\""
+		"token:generate": "node -e \"console.log(require(\\\"node:crypto\\\").randomBytes(48).toString(\\\"base64url\\\"))\"",
+		"user:reset-password": "node docker/reset-password.mjs"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",

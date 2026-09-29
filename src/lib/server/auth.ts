@@ -7,6 +7,9 @@ import { getRequestEvent } from '$app/server';
 import { db } from '$lib/server/db';
 import { emailConfigured, sendEmail } from '$lib/server/email';
 
+const emailPasswordEnabled = env.AUTH_EMAIL_PASSWORD_ENABLED === 'true';
+const mailer = emailConfigured();
+
 function escapeHtml(value: string): string {
 	return value.replace(
 		/[&<>"']/g,
@@ -16,8 +19,8 @@ function escapeHtml(value: string): string {
 }
 
 /**
- * Emails a password-reset link. Fired without awaiting (see Better Auth's note
- * on timing attacks); sendEmail never throws, so nothing is left dangling.
+ * Emails are fired without awaiting (see Better Auth's note on timing attacks);
+ * sendEmail never throws, so nothing is left dangling.
  */
 async function sendResetPasswordEmail({
 	user,
@@ -35,6 +38,22 @@ async function sendResetPasswordEmail({
 	});
 }
 
+async function sendVerificationEmail({
+	user,
+	url
+}: {
+	user: { email: string; name: string };
+	url: string;
+}): Promise<void> {
+	const name = escapeHtml(user.name || 'there');
+	void sendEmail({
+		to: user.email,
+		subject: 'Confirm your Maintec Karaoke account',
+		text: `Hi ${user.name || 'there'},\n\nConfirm your email to finish creating your account:\n${url}\n\nIf you didn't sign up, you can ignore this email.`,
+		html: `<p>Hi ${name},</p><p>Confirm your email to finish creating your Maintec Karaoke account:</p><p><a href="${url}">Confirm my email</a></p><p>If you didn't sign up, you can ignore this email.</p>`
+	});
+}
+
 export const auth = betterAuth({
 	baseURL: env.ORIGIN,
 	// A placeholder keeps the postbuild analysis pass happy; the real secret is
@@ -43,11 +62,12 @@ export const auth = betterAuth({
 		env.BETTER_AUTH_SECRET ?? (building ? 'build-time-secret-placeholder-0000000000' : undefined),
 	database: drizzleAdapter(db, { provider: 'sqlite' }),
 
-	// Password sign-in (enabled via env). When Resend is configured, singers can
-	// reset a forgotten password themselves; otherwise the host resets it.
+	// Password sign-in (enabled via env). When Resend is configured, singers
+	// verify their address at sign-up and can reset a forgotten password.
 	emailAndPassword: {
-		enabled: env.AUTH_EMAIL_PASSWORD_ENABLED === 'true',
-		...(emailConfigured()
+		enabled: emailPasswordEnabled,
+		...(mailer && emailPasswordEnabled ? { requireEmailVerification: true } : {}),
+		...(mailer
 			? {
 					revokeSessionsOnPasswordReset: true,
 					sendResetPassword: sendResetPasswordEmail
@@ -55,23 +75,26 @@ export const auth = betterAuth({
 			: {})
 	},
 
-	// Singers authenticate with their existing Google or Apple account.
-	// Providers are only registered when credentials are configured so that
-	// local builds, tests and CI work without OAuth secrets.
+	// Verification emails are only wired up when a mailer exists, so local
+	// builds and CI work without secrets.
+	...(mailer
+		? {
+				emailVerification: {
+					sendVerificationEmail,
+					sendOnSignUp: true,
+					autoSignInAfterVerification: true
+				}
+			}
+		: {}),
+
+	// Google is the one social provider; it is registered only when its
+	// credentials are present so local builds and CI work without secrets.
 	socialProviders: {
 		...(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
 			? {
 					google: {
 						clientId: env.GOOGLE_CLIENT_ID,
 						clientSecret: env.GOOGLE_CLIENT_SECRET
-					}
-				}
-			: {}),
-		...(env.APPLE_CLIENT_ID && env.APPLE_CLIENT_SECRET
-			? {
-					apple: {
-						clientId: env.APPLE_CLIENT_ID,
-						clientSecret: env.APPLE_CLIENT_SECRET
 					}
 				}
 			: {})

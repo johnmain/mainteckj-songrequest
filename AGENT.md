@@ -2,7 +2,7 @@ Karaoke Portal Agent Instructions
 
 Project Overview
 
-This repository contains the custom SvelteKit-based singer registration and song-selection web portal for the karaoke application. It runs on a NAS/Server environment, is exposed via a Netbird reverse proxy, handles user authentication (Google, Apple, etc. via Better Auth), and communicates with the local C++/QML desktop karaoke host machine via a secure API/WebSocket bridge.
+This repository contains the custom SvelteKit-based singer registration and song-selection web portal for the karaoke application. It runs on a NAS/Server environment, is exposed via a Netbird reverse proxy, handles user authentication (Google OAuth plus optional email/password via Better Auth), and communicates with the local C++/QML desktop karaoke host machine via a secure pull-based HTTP bridge.
 
 Architecture & Tech Stack
 
