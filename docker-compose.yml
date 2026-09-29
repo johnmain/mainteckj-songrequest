@@ -34,7 +34,9 @@ services:
       # Named volume by default; set PORTAL_DATA to a host path to bind-mount.
       - ${PORTAL_DATA:-portal_data}:/data
     healthcheck:
-      test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/api/health']
+      # 127.0.0.1, not localhost: inside alpine "localhost" resolves to ::1
+      # first, but the app listens on IPv4 only, which reads as "refused".
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:3000/api/health']
       interval: 30s
       timeout: 5s
       retries: 5
