@@ -1,0 +1,61 @@
+# Docker Compose stack for the singer portal.
+#
+# Deploy from GitHub (recommended): .github/workflows/ci.yml publishes the image
+# to GHCR on every push to the default branch.
+#
+#   cp .env.example .env      # then fill it in
+#   docker compose pull
+#   docker compose up -d
+#
+# Build on the host instead of pulling:
+#   docker compose up -d --build
+#
+# Optional TLS reverse proxy (see Caddyfile):
+#   docker compose --profile tls up -d
+services:
+  portal:
+    # Replace CHANGE_ME with the GitHub owner (user/org); the workflow publishes
+    # to ghcr.io/<owner>/<repo>. You can also set PORTAL_IMAGE in .env.
+    image: ${PORTAL_IMAGE:-ghcr.io/CHANGE_ME/mainteckj-songrequest:latest}
+    build: .
+    container_name: maintec-kj-portal
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Keep the database on the mounted volume regardless of .env.
+      DATABASE_URL: /data/local.db
+    ports:
+      # Bound to localhost; expose it via Netbird / the reverse proxy.
+      - '127.0.0.1:3000:3000'
+    volumes:
+      - ./data:/data
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/api/health']
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # Optional TLS termination. Point a DNS name at this VM and set PORTAL_DOMAIN
+  # in .env. If you already front the portal with Netbird's ingress, leave this
+  # profile off.
+  caddy:
+    image: caddy:2-alpine
+    container_name: maintec-kj-caddy
+    restart: unless-stopped
+    profiles: ['tls']
+    depends_on:
+      - portal
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      PORTAL_DOMAIN: ${PORTAL_DOMAIN:-karaoke.example.org}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

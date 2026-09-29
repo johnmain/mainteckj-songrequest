@@ -1,0 +1,9 @@
+# Reverse proxy for the portal (compose profile "tls").
+#
+# Caddy obtains a certificate automatically. For a private Netbird name that
+# cannot be validated publicly, either use Netbird's own ingress instead, or
+# add `tls internal` inside the block below and trust Caddy's local CA on the
+# devices that connect.
+{$PORTAL_DOMAIN} {
+	reverse_proxy portal:3000
+}
