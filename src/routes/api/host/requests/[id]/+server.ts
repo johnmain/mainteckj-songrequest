@@ -2,6 +2,7 @@ import { error, json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { requireBridgeToken } from '$lib/server/bridge/bridgeAuth';
 import {
+	deleteRequestByHost,
 	REQUEST_STATUSES,
 	updateRequestStatus,
 	type RequestStatus
@@ -17,8 +18,17 @@ export const PATCH: RequestHandler = async ({ request, params }) => {
 
 	const body = (await request.json().catch(() => null)) as { status?: unknown } | null;
 	const status = body?.status;
+
+	// Acknowledges a singer deletion: the host has dropped the queue row.
+	if (status === 'removed') {
+		if (!deleteRequestByHost(db, params.id)) {
+			throw error(404, 'Request not found');
+		}
+		return json({ removed: true });
+	}
+
 	if (typeof status !== 'string' || !REQUEST_STATUSES.includes(status as RequestStatus)) {
-		throw error(400, `status must be one of: ${REQUEST_STATUSES.join(', ')}`);
+		throw error(400, `status must be one of: ${REQUEST_STATUSES.join(', ')}, removed`);
 	}
 
 	const result = updateRequestStatus(db, params.id, status as RequestStatus);

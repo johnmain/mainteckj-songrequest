@@ -1,0 +1,1 @@
+ALTER TABLE `song_request` ADD `pending_removal` integer DEFAULT false NOT NULL;

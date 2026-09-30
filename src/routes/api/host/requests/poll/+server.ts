@@ -2,7 +2,11 @@ import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { requireBridgeToken } from '$lib/server/bridge/bridgeAuth';
 import { recordHostHeartbeat } from '$lib/server/requests/hostState';
-import { claimPendingRequests, pendingQueueUpdates } from '$lib/server/requests/requests';
+import {
+	claimPendingRequests,
+	pendingQueueUpdates,
+	pendingRemovals
+} from '$lib/server/requests/requests';
 import type { RequestHandler } from './$types';
 
 /**
@@ -24,6 +28,7 @@ export const POST: RequestHandler = ({ request }) => {
 
 	const requests = claimPendingRequests(db);
 	const updates = pendingQueueUpdates(db);
+	const removals = pendingRemovals(db);
 
-	return json({ count: requests.length, requests, updates });
+	return json({ count: requests.length, requests, updates, removals });
 };

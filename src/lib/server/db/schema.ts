@@ -111,6 +111,11 @@ export const songRequest = sqliteTable(
 		hostPlayed: integer('host_played', { mode: 'boolean' }),
 		/** A singer-requested played change waiting for the host. null = none. */
 		pendingPlayed: integer('pending_played', { mode: 'boolean' }),
+		/**
+		 * The singer deleted this request; the host should drop the matching
+		 * queue row and acknowledge (status `removed`), then the portal deletes it.
+		 */
+		pendingRemoval: integer('pending_removal', { mode: 'boolean' }).notNull().default(false),
 		createdAt: integer('created_at', { mode: 'timestamp_ms' }).default(nowDefault).notNull(),
 		updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
 			.default(nowDefault)

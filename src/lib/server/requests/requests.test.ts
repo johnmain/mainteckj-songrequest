@@ -8,11 +8,13 @@ import {
 	claimPendingRequests,
 	countUserRequests,
 	createSongRequest,
+	deleteRequestByHost,
 	deleteSongRequest,
 	findPendingRequest,
 	getRequestById,
 	listUserRequests,
 	pendingQueueUpdates,
+	pendingRemovals,
 	setRequestedPlayed,
 	updateRequestStatus
 } from './requests';
@@ -166,5 +168,40 @@ describe('deleteSongRequest', () => {
 
 	it('reports unknown requests', () => {
 		expect(deleteSongRequest(db, 'missing', userId)).toBe('not-found');
+	});
+});
+
+describe('deleteSongRequest (already in the host queue)', () => {
+	it('flags a claimed request for removal instead of deleting it', () => {
+		const request = createSongRequest(db, { userId, songId });
+		claimPendingRequests(db, 50); // host claims it → deliveredAt set
+
+		expect(deleteSongRequest(db, request.id, userId)).toBe('pending-removal');
+
+		// Hidden from the singer and the duplicate guard...
+		expect(countUserRequests(db, userId)).toBe(0);
+		expect(listUserRequests(db, userId)).toEqual([]);
+		expect(findPendingRequest(db, userId, songId)).toBeUndefined();
+		// ...and offered to the host on its next poll.
+		expect(pendingRemovals(db)).toEqual([request.id]);
+	});
+
+	it('is not handed back to the host as a new request', () => {
+		const request = createSongRequest(db, { userId, songId });
+		claimPendingRequests(db, 50);
+		deleteSongRequest(db, request.id, userId);
+
+		expect(claimPendingRequests(db, 50)).toEqual([]);
+	});
+
+	it('deletes the request when the host acknowledges the removal', () => {
+		const request = createSongRequest(db, { userId, songId });
+		claimPendingRequests(db, 50);
+		deleteSongRequest(db, request.id, userId);
+
+		expect(deleteRequestByHost(db, request.id)).toBe(true);
+		expect(getRequestById(db, request.id)).toBeUndefined();
+		expect(pendingRemovals(db)).toEqual([]);
+		expect(deleteRequestByHost(db, 'missing')).toBe(false);
 	});
 });

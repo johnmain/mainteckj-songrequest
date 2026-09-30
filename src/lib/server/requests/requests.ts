@@ -67,6 +67,7 @@ export function findPendingRequest(
 			and(
 				eq(songRequest.userId, userId),
 				eq(songRequest.songId, songId),
+				eq(songRequest.pendingRemoval, false),
 				inArray(songRequest.status, ['pending', 'approved', 'playing'])
 			)
 		)
@@ -111,7 +112,7 @@ export function listUserRequests(
 		})
 		.from(songRequest)
 		.innerJoin(song, eq(songRequest.songId, song.id))
-		.where(eq(songRequest.userId, userId))
+		.where(and(eq(songRequest.userId, userId), eq(songRequest.pendingRemoval, false)))
 		.orderBy(desc(songRequest.createdAt))
 		.limit(clampLimit(options.limit))
 		.offset(Math.max(Math.trunc(options.offset ?? 0), 0))
@@ -120,19 +121,26 @@ export function listUserRequests(
 
 export function countUserRequests(db: AppDatabase, userId: string): number {
 	return (
-		db.select({ value: count() }).from(songRequest).where(eq(songRequest.userId, userId)).get()
-			?.value ?? 0
+		db
+			.select({ value: count() })
+			.from(songRequest)
+			.where(and(eq(songRequest.userId, userId), eq(songRequest.pendingRemoval, false)))
+			.get()?.value ?? 0
 	);
 }
 
 /** Statuses a singer may remove from their list: not started, or already decided. */
 const DELETABLE_STATUSES: RequestStatus[] = ['pending', 'approved', 'rejected'];
 
-export type DeleteRequestResult = 'deleted' | 'not-found' | 'not-deletable';
+export type DeleteRequestResult = 'deleted' | 'pending-removal' | 'not-found' | 'not-deletable';
 
 /**
  * Removes one of the singer's own requests. Allowed while it is pending,
  * approved, or rejected; a song that's already playing/played can't be removed.
+ *
+ * If the host never claimed it, it is deleted outright. If it is already in the
+ * host's queue, it is flagged for removal so the host can drop the queue row
+ * and acknowledge; the finder is hidden from the singer's list in the meantime.
  */
 export function deleteSongRequest(
 	db: AppDatabase,
@@ -143,8 +151,16 @@ export function deleteSongRequest(
 	if (!request || request.userId !== userId) return 'not-found';
 	if (!DELETABLE_STATUSES.includes(request.status)) return 'not-deletable';
 
-	db.delete(songRequest).where(eq(songRequest.id, id)).run();
-	return 'deleted';
+	if (!request.deliveredAt) {
+		db.delete(songRequest).where(eq(songRequest.id, id)).run();
+		return 'deleted';
+	}
+
+	db.update(songRequest)
+		.set({ pendingRemoval: true, updatedAt: new Date() })
+		.where(eq(songRequest.id, id))
+		.run();
+	return 'pending-removal';
 }
 
 /**
@@ -169,7 +185,13 @@ export function claimPendingRequests(db: AppDatabase, limit = 50): HostPendingRe
 		.innerJoin(song, eq(songRequest.songId, song.id))
 		.leftJoin(user, eq(songRequest.userId, user.id))
 		.leftJoin(singerProfile, eq(singerProfile.userId, songRequest.userId))
-		.where(and(eq(songRequest.status, 'pending'), isNull(songRequest.deliveredAt)))
+		.where(
+			and(
+				eq(songRequest.status, 'pending'),
+				eq(songRequest.pendingRemoval, false),
+				isNull(songRequest.deliveredAt)
+			)
+		)
 		.orderBy(songRequest.createdAt)
 		.limit(Math.min(Math.max(Math.trunc(limit), 1), 200))
 		.all();
@@ -273,8 +295,31 @@ export function pendingQueueUpdates(db: AppDatabase, limit = 200): QueueUpdate[]
 	return db
 		.select({ id: songRequest.id, played: songRequest.pendingPlayed })
 		.from(songRequest)
-		.where(isNotNull(songRequest.pendingPlayed))
+		.where(and(isNotNull(songRequest.pendingPlayed), eq(songRequest.pendingRemoval, false)))
 		.limit(Math.min(Math.max(Math.trunc(limit), 1), 500))
 		.all()
 		.map((row) => ({ id: row.id, played: row.played === true }));
+}
+
+/** Requests the singer deleted that the host still has queued, awaiting its ack. */
+export function pendingRemovals(db: AppDatabase, limit = 200): string[] {
+	return db
+		.select({ id: songRequest.id })
+		.from(songRequest)
+		.where(eq(songRequest.pendingRemoval, true))
+		.limit(Math.min(Math.max(Math.trunc(limit), 1), 500))
+		.all()
+		.map((row) => row.id);
+}
+
+/**
+ * Host acknowledges a removal: the queue row is gone, so delete the request
+ * outright. Returns false when it no longer exists.
+ */
+export function deleteRequestByHost(db: AppDatabase, id: string): boolean {
+	const existing = getRequestById(db, id);
+	if (!existing) return false;
+
+	db.delete(songRequest).where(eq(songRequest.id, id)).run();
+	return true;
 }

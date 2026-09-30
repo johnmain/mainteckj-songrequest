@@ -89,6 +89,12 @@ export const actions: Actions = {
 		if (result === 'not-deletable') {
 			return fail(400, { success: false, message: 'This song can no longer be removed.' });
 		}
+		if (result === 'pending-removal') {
+			return {
+				success: true,
+				message: 'Removed — the KJ will drop it from the queue shortly.'
+			};
+		}
 
 		return { success: true, message: 'Request removed.' };
 	}
