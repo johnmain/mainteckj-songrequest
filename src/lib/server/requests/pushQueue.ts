@@ -30,6 +30,8 @@ export type PushQueueResult =
 			updated: number;
 			removed: number;
 			skipped: number;
+			/** The request each queued song maps to; empty on a dry run. */
+			requests: { title: string; artist: string; requestId: string | null }[];
 	  };
 
 /** Requests that are still "in play"; played/rejected are left alone. */
@@ -144,6 +146,8 @@ export function pushSingerQueue(db: AppDatabase, input: PushQueueInput): PushQue
 	const dryRun = input.dryRun === true;
 	const plan = buildPlan(db, singer.id, songs);
 
+	const requests: { title: string; artist: string; requestId: string | null }[] = [];
+
 	if (!dryRun) {
 		db.transaction((tx) => {
 			if (plan.removedIds.length > 0) {
@@ -176,8 +180,14 @@ export function pushSingerQueue(db: AppDatabase, input: PushQueueInput): PushQue
 						})
 						.where(eq(songRequest.id, item.activeRequestId))
 						.run();
+					requests.push({
+						title: item.title,
+						artist: item.artist,
+						requestId: item.activeRequestId
+					});
 				} else {
-					tx.insert(songRequest)
+					const created = tx
+						.insert(songRequest)
 						.values({
 							userId: singer.id,
 							songId,
@@ -185,7 +195,9 @@ export function pushSingerQueue(db: AppDatabase, input: PushQueueInput): PushQue
 							hostPlayed: item.played,
 							deliveredAt: now
 						})
-						.run();
+						.returning()
+						.get();
+					requests.push({ title: item.title, artist: item.artist, requestId: created.id });
 				}
 			}
 		});
@@ -199,6 +211,7 @@ export function pushSingerQueue(db: AppDatabase, input: PushQueueInput): PushQue
 		created: plan.created,
 		updated: plan.updated,
 		removed: plan.removedIds.length,
-		skipped: plan.skipped
+		skipped: plan.skipped,
+		requests
 	};
 }

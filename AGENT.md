@@ -36,7 +36,9 @@ Host Bridge Endpoints (authenticated with `HOST_BRIDGE_TOKEN`)
 - `POST /api/host/queue/push` — full reconcile of one singer's queue:
   body `{ singerName, songs: [{ title, artist, played }] }`. Queued songs are created
   as `approved`/delivered requests; active requests whose song is no longer queued are
-  removed (played/rejected history is untouched). `404` unknown singer, `409` ambiguous.
+  removed (played/rejected history is untouched). Returns
+  `requests: [{ title, artist, requestId }]` so the host can write the ids back onto
+  its queue rows (empty on a `dryRun`). `404` unknown singer, `409` ambiguous.
 
 Public endpoints
 

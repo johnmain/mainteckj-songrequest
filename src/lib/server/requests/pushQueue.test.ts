@@ -41,13 +41,21 @@ describe('pushSingerQueue', () => {
 			]
 		});
 
-		expect(result).toMatchObject({ status: 'ok', created: 2, updated: 0, removed: 0 });
+		expect(result.status).toBe('ok');
+		if (result.status !== 'ok') return;
+		expect(result).toMatchObject({ created: 2, updated: 0, removed: 0 });
 
 		const rows = requestsByTitle();
 		expect(rows).toHaveLength(2);
 		expect(rows.every((r) => r.status === 'approved' && r.delivered !== null)).toBe(true);
 		expect(rows.find((r) => r.title === 'Song B')?.played).toBe(true);
 		expect(rows.find((r) => r.title === 'Song A')?.played).toBe(false);
+
+		// The host can link each queued song back to its new request.
+		expect(result.requests).toHaveLength(2);
+		const ids = result.requests.map((r) => r.requestId);
+		expect(ids.every((id) => typeof id === 'string' && id.length > 0)).toBe(true);
+		expect(new Set(ids).size).toBe(2);
 	});
 
 	it('updates the played flag of an existing request', () => {
@@ -57,8 +65,12 @@ describe('pushSingerQueue', () => {
 			songs: [{ title: 'Song A', artist: 'Band', played: true }]
 		});
 
-		expect(result).toMatchObject({ status: 'ok', created: 0, updated: 1, removed: 0 });
+		expect(result.status).toBe('ok');
+		if (result.status !== 'ok') return;
+		expect(result).toMatchObject({ created: 0, updated: 1, removed: 0 });
 		expect(requestsByTitle()[0].played).toBe(true);
+		// Updating returns the existing request id, not a new one.
+		expect(result.requests[0].requestId).toBe(requestsByTitle()[0].id);
 	});
 
 	it('removes active requests no longer in the queue but keeps played history', () => {
@@ -129,6 +141,7 @@ describe('pushSingerQueue', () => {
 				.all()
 				.some((s) => s.title === 'Song C')
 		).toBe(false);
+		expect((preview as { requests?: unknown[] }).requests).toEqual([]);
 	});
 
 	it('skips blank rows and de-duplicates repeated songs', () => {

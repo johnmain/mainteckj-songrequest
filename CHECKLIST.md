@@ -29,7 +29,7 @@ Phase 4: Request & Host Bridge
 - [x] Implement the pull-based host bridge (desktop polls the portal)
 - [x] Sync played/unplayed state between the portal and the desktop queue
 - [x] Live "accepting requests" toggle surfaced via the public `GET /api/status`
-- [x] Host push of one singer's app queue into the Request DB (`POST /api/host/queue/push`)
+- [x] Host push of one singer's app queue into the Request DB (`POST /api/host/queue/push`), returning the created/existing `requestId` per song so the app can link its queue rows
 - [x] Singer deletions propagate to the host queue (`pending_removal` → poll `removals` → host acks `removed`)
 - [x] Portal singer directory for the app's "is this singer in the Request DB?" indicator (`GET /api/host/singers`)
 - [x] Test end-to-end request flow over the Netbird reverse proxy
