@@ -30,6 +30,7 @@ Phase 4: Request & Host Bridge
 - [x] Sync played/unplayed state between the portal and the desktop queue
 - [x] Live "accepting requests" toggle surfaced via the public `GET /api/status`
 - [x] Host push of one singer's app queue into the Request DB (`POST /api/host/queue/push`)
+- [x] Singer deletions propagate to the host queue (`pending_removal` → poll `removals` → host acks `removed`)
 - [x] Portal singer directory for the app's "is this singer in the Request DB?" indicator (`GET /api/host/singers`)
 - [x] Test end-to-end request flow over the Netbird reverse proxy
 

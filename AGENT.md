@@ -25,9 +25,11 @@ Host Triage: Requests land in a staging queue on the desktop app, where the host
 Host Bridge Endpoints (authenticated with `HOST_BRIDGE_TOKEN`)
 
 - `POST /api/host/requests/poll` — the desktop host's pull/heartbeat. Claims pending
-  requests and returns `{ count, requests, updates }`; the `X-Accepting` header
-  carries the host's "accepting requests" toggle.
-- `PATCH /api/host/requests/{id}` — host reports `approved | playing | played | rejected`.
+  requests and returns `{ count, requests, updates, removals }`; the `X-Accepting`
+  header carries the host's "accepting requests" toggle. `removals` lists requests
+  the singer deleted (`pending_removal`).
+- `PATCH /api/host/requests/{id}` — host reports `approved | playing | played | rejected`,
+  or `removed` to acknowledge a singer deletion (which deletes the request).
 - `POST /api/catalog/ingest` — host pushes the master song export (`[{ Artist, Title }]`).
 - `GET /api/host/singers` — portal account directory (`{ singers: [{ id, name, stageName }] }`),
   used by the desktop app to show whether a singer exists in the Request DB.
